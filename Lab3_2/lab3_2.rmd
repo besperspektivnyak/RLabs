@@ -1,0 +1,102 @@
+---
+title: "Лабораторная 3_2"
+author: Елизавета Гришина
+output: 
+  html_document:
+    df_print: kable
+---
+
+Файл ExpImp.RData. Приведите данные к формату tidydata. Отобразите суммарные значения экспорта и импорта по субъектам федерации, находящимся в Центральном федеральном округе, в виде столбчатой диаграммы [сгруппировав значения по названию субъекта федерации]. Экспорт и импорт обозначьте разными цветами. Сделайте второй график, наложив столбцы экспорта и импорта один на другой и подписав значения разниц между экспортом и импортом.
+
+Загрузим необходимые библиотеки и исходные данные
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(magrittr)
+library(tidyr)
+library(tidyverse)
+library(data.table)
+library(reshape2)
+
+# Поменяйте путь расположения файла на собственный
+# load('C:/Users/Елизавета/RLab2/Lab3_2/ExpImp.RData')
+load("ExpImp.RData")
+
+```
+
+Преобразуем данные к формату tidydata, выберем только интересующий нас Центральный Федеральный округ и сделаем числовыми необходимые значения
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+expimp <- tibble(ExpImp)
+expimp <- slice(expimp, 3:20)
+expimp[2:13] <- lapply(expimp[2:13], function(x) as.numeric(sub('-', '0', x)))
+
+```
+
+
+Выделим столбцы с импортом и экспортом. Посчитаем суммарные значения.
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+exp <- grep('.*Экспорт', colnames(expimp))
+imp <- grep('.*Импорт', colnames(expimp))
+
+expimp <- expimp %>%
+    mutate(Суммарный_экспорт = select(., exp) %>% rowSums(na.rm = TRUE)) %>%
+    mutate(Суммарный_импорт = select(., imp) %>% rowSums(na.rm = TRUE))
+
+head(expimp)
+
+```
+
+
+Изменим имя столбца для удобства и оставим только необходимые столбцы. Далее соединим два последних столбца в один и добавим тип значения: импорт или экспорт.
+
+Строим стобчатую диаграмму с показателями импорта и экспорта по регионам.
+
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, }
+colnames(expimp)[1] <- "Region"
+expimp <- expimp[c(1, 14, 15)]
+
+head(expimp)
+
+expimp2 <- tibble(melt(data.table(expimp), id.vars="Region"))
+
+head(expimp2)
+
+
+plot <- ggplot(expimp2, aes(x=value, y=Region, fill=variable)) +
+  geom_bar(stat='identity', position='dodge') + xlab("Объем") + ylab("Регион") +
+  ggtitle("Объем экспорта и импорта в Центральном Федеральном округе") + 
+  scale_fill_discrete(name = "Экспорт/Импорт") + theme(text = element_text(size=20),
+        axis.text.x = element_text(angle=90, hjust=1)) 
+
+```
+
+
+Выведем получившуюся диаграмму
+
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.align="center", fig.width = 14, fig.height=10}
+plot
+
+```
+
+Посчитаем разность между экспортом и импортом. Построим другую столбчатую диаграмму с разностью значений.
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+difference = expimp$Суммарный_экспорт - expimp$Суммарный_импорт
+difference = rep(difference, 2)
+difference
+
+plot2 <- ggplot(expimp2, aes(x=value, y=Region, fill=variable)) +
+  geom_bar(stat='identity') + xlab("Объем") + ylab("Регион") +
+  ggtitle("Объем экспорта и импорта в Центральном Федеральном округе") + 
+  scale_fill_discrete(name = "Экспорт/Импорт") + 
+  geom_text(aes(label=ifelse(variable=="Суммарный_экспорт",difference, "")), position = position_stack(vjust = 1)) + theme(text = element_text(size=20),
+        axis.text.x = element_text(angle=90, hjust=1)) 
+
+```
+
+Выведем получившуюся диаграмму
+
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.align="center", fig.width = 14, fig.height=10}
+plot2
+
+```

@@ -1,0 +1,59 @@
+---
+title: "Лабораторная 3_1"
+author: Елизавета Гришина
+output: 
+  html_document:
+    df_print: kable
+---
+## Условие
+
+Файл trades.RData. Объедините таблицы в одну, уберите столбец с территорией торговли, т.к. там только Евросоюз, оставим только строки с экспортом и импортом, вынесете данные по экспорту и импорту в отдельные переменные. Постройте линейный график изменения экспорта по годам просуммировав разные группы экспортируемых товаров. Подпишите значения на графике. Отрегулируйте местоположение подписей так, чтобы рисунок был максимально наглядным. Придумайте новые названия графика и осей.
+
+Загрузим необходимые библиотеки и данные
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+library(dplyr)
+library(tibble)
+library(ggplot2)
+load('trades.RData')
+
+```
+
+Модифицируем исходные данные: объединяем две таблицы и исключаем столбец с территорией торговли.
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+table <- Reduce(function(...) merge(..., all=TRUE), trades)
+table$geo <- NULL
+head(table)
+
+```
+Сформируем две таблицы для экспорта и для импорта. Посчитаем суммы экспорта и импорта по года, поменяем названия столбцов. Определим графики.
+
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+table <- tibble(table) %>% group_by(time)
+export <- table %>% filter(indic_et=='Exports in million of ECU/EURO')
+import <- table %>% filter(indic_et=='Imports in million of ECU/EURO')
+exp <- aggregate(export$values, by=list(export$sitc06, export$time), sum)
+imp <- aggregate(import$values, by=list(export$sitc06, export$time), sum)
+
+colnames(exp) <- c("Group", "Time", "Value")
+colnames(imp) <- c("Group", "Time", "Value")
+
+head(exp)
+head(imp)
+
+
+plot_exp <- ggplot(exp, aes(Time, Value, colour = Group)) + geom_point() + geom_line() + geom_label(size = 4, vjust = 1, aes(label=exp$Value), colour = 'black') + ggtitle("Объемы экспорта 2008-2019гг.") + xlab("Год") + ylab("Объем экспорта") + theme(text = element_text(size=20),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+plot_imp <- ggplot(imp, aes(Time, Value, colour = Group, label=Value))  + geom_point() + geom_line() +  geom_label(size = 4, vjust = 1, aes(label=Value), colour = 'black') + ggtitle("Объемы импорта 2008-2019гг.") + xlab("Год") + ylab("Объем импорта") + theme(text = element_text(size=20),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+```
+Построим графики для экспорта и импорта
+```{r echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, fig.align="center", fig.width = 14, fig.height=10}
+
+plot_imp
+
+plot_exp
+
+
+```
