@@ -1,0 +1,73 @@
+---
+title: "RShiny"
+author: "Elizaveta Grishina"
+date: "28 12 2021"
+output: html_document
+runtime: shiny
+---
+
+Небольшой интерактив с данными полученными в работе 3_2.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(magrittr)
+library(tidyr)
+library(tidyverse)
+library(data.table)
+library(reshape2)
+load('C:/Users/Елизавета/RLab2/Lab3_2/ExpImp.RData')
+
+expimp <- tibble(ExpImp)
+expimp <- slice(expimp, 3:20)
+expimp[2:13] <- lapply(expimp[2:13], function(x) as.numeric(sub('-', '0', x)))
+exp <- grep('.*Экспорт', colnames(expimp))
+imp <- grep('.*Импорт', colnames(expimp))
+
+expimp <- expimp %>%
+    mutate(Суммарный_экспорт = select(., exp) %>% rowSums(na.rm = TRUE)) %>%
+    mutate(Суммарный_импорт = select(., imp) %>% rowSums(na.rm = TRUE))
+
+colnames(expimp)[1] <- "Region"
+expimp <- expimp[c(1, 14, 15)]
+
+expimp2 <- tibble(melt(data.table(expimp), id.vars="Region"))
+```
+
+### Экспорт и импорт
+
+Можно посмотерть графики экспорта и импорта для каждого отдельного региона. А также узнать цифры суммарного экспорта или суммарного импорта.
+
+```{r eruptions, echo=FALSE}
+
+inputPanel(
+  selectInput("region", "Регион:",
+                choices = expimp$Region),
+  
+  selectInput("type", "Экспорт/Импорт:", choices = c("Суммарный_импорт", "Суммарный_экспорт")),
+
+)
+
+  renderTable({table <- expimp2 %>% filter(Region == input$region) %>% filter(variable == input$type)})
+  
+  
+  plotExpImp <- function() {
+    table <- expimp %>% filter(Region == input$region)
+    res <- list("Импорт"=c(as.numeric(table$"Суммарный_импорт")),
+                "Экспорт"=c(as.numeric(table$"Суммарный_экспорт")))
+    return(res)
+  }
+
+    
+    renderPlot({barplot(unlist(plotExpImp()), ylab='Объем', col=c("red", "green"))})
+
+```
+
+
+
